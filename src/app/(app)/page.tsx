@@ -1,24 +1,17 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
-
-export default async function AppShellPage() {
-  const { userId } = await auth();
-
-  if (!userId) {
-    redirect("/sign-in");
-  }
-
-  const user = await currentUser();
-
+export default function AppShellPage() {
   return (
-    <main className="min-h-screen bg-zinc-950 px-6 py-10 text-zinc-100">
-      <div className="mx-auto max-w-5xl rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-        <p className="text-sm text-zinc-400">Protected route</p>
-        <h1 className="mt-2 text-2xl font-semibold">App shell ready</h1>
-        <p className="mt-3 text-zinc-300">
-          Signed in as <span className="font-medium">{user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Unknown user"}</span>
+    <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+      <p className="text-sm text-zinc-400">PR-02 complete</p>
+      <h1 className="mt-2 text-2xl font-semibold">Auth shell + user sync ready</h1>
+      <p className="mt-3 text-zinc-300">
+        Clerk users are now synchronized to Convex on first app load after sign
+        in. Next PR will add user discovery and start/create DM conversations.
+      </p>
+      <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+        <p className="text-sm text-zinc-300">
+          Upcoming: user list, search, and conversation bootstrap.
         </p>
       </div>
-    </main>
+    </section>
   );
 }
