@@ -58,6 +58,7 @@ Optional:
 - [x] Real-time online/offline presence indicators
 - [x] Real-time typing indicator with inactivity timeout
 - [x] Unread message count badges with clear-on-open
+- [x] Smart auto-scroll with "New messages" jump button
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
