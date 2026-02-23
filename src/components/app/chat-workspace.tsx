@@ -59,6 +59,11 @@ type ChatMessage = {
   createdAt: number;
   isMine: boolean;
   isDeleted: boolean;
+  reactions: Array<{
+    emoji: string;
+    count: number;
+    reactedByMe: boolean;
+  }>;
 };
 
 type TypingUser = {
@@ -82,6 +87,8 @@ const listConversationMessagesRef = anyApi.messages
 const sendMessageRef = anyApi.messages.sendMessage as FunctionReference<"mutation">;
 const deleteOwnMessageRef = anyApi.messages
   .deleteOwnMessage as FunctionReference<"mutation">;
+const toggleReactionRef = anyApi.messages
+  .toggleReaction as FunctionReference<"mutation">;
 const setTypingStateRef = anyApi.typing
   .setTypingState as FunctionReference<"mutation">;
 const getTypingUsersRef = anyApi.typing.getTypingUsers as FunctionReference<"query">;
@@ -177,6 +184,7 @@ export function ChatWorkspace() {
   const getOrCreateDmConversation = useMutation(getOrCreateDmConversationRef);
   const sendMessage = useMutation(sendMessageRef);
   const deleteOwnMessage = useMutation(deleteOwnMessageRef);
+  const toggleReaction = useMutation(toggleReactionRef);
   const markConversationAsRead = useMutation(markConversationAsReadRef);
   const setTypingState = useMutation(setTypingStateRef);
 
@@ -368,6 +376,14 @@ export function ChatWorkspace() {
       await deleteOwnMessage({ messageId });
     } catch (error) {
       console.error("Failed to delete message", error);
+    }
+  }
+
+  async function handleToggleReaction(messageId: string, emoji: string) {
+    try {
+      await toggleReaction({ messageId, emoji });
+    } catch (error) {
+      console.error("Failed to toggle reaction", error);
     }
   }
 
@@ -603,6 +619,26 @@ export function ChatWorkspace() {
                     <p className="mt-1 text-[11px] opacity-70">
                       {formatChallengeTimestamp(message.createdAt)}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {message.reactions.map((reaction) => (
+                        <button
+                          key={`${message._id}-${reaction.emoji}`}
+                          type="button"
+                          onClick={() =>
+                            handleToggleReaction(message._id, reaction.emoji)
+                          }
+                          className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                            reaction.reactedByMe
+                              ? "border-emerald-400 bg-emerald-100 text-zinc-900"
+                              : message.isMine
+                                ? "border-zinc-400 bg-white/70 text-zinc-900"
+                                : "border-zinc-600 bg-zinc-700 text-zinc-100"
+                          }`}
+                        >
+                          {reaction.emoji} {reaction.count > 0 ? reaction.count : ""}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ))
               )}

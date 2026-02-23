@@ -60,6 +60,7 @@ Optional:
 - [x] Unread message count badges with clear-on-open
 - [x] Smart auto-scroll with "New messages" jump button
 - [x] Soft delete own messages with deleted placeholder text
+- [x] Emoji message reactions (toggle + realtime counts)
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup

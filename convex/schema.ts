@@ -51,4 +51,12 @@ export default defineSchema({
     .index("by_conversation_id", ["conversationId"])
     .index("by_user_id", ["userId"])
     .index("by_conversation_and_user", ["conversationId", "userId"]),
+  messageReactions: defineTable({
+    messageId: v.id("messages"),
+    userId: v.id("users"),
+    emoji: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_message_id", ["messageId"])
+    .index("by_message_user_emoji", ["messageId", "userId", "emoji"]),
 });
