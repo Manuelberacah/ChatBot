@@ -52,6 +52,8 @@ Optional:
 - [x] Create/open one-to-one conversation on user click
 - [x] Realtime message send/list for one-to-one chats
 - [x] Conversation sidebar with latest message preview
+- [x] Challenge-compliant timestamp formatting (today vs older vs older year)
+- [x] Explicit empty states for search, conversations, and messages
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
