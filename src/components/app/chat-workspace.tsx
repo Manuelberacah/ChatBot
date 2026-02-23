@@ -56,13 +56,41 @@ const listConversationMessagesRef = anyApi.messages
   .listConversationMessages as FunctionReference<"query">;
 const sendMessageRef = anyApi.messages.sendMessage as FunctionReference<"mutation">;
 
-function formatSidebarTime(timestamp: number) {
+function isSameCalendarDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function formatChallengeTimestamp(timestamp: number) {
+  const now = new Date();
+  const date = new Date(timestamp);
+
+  if (isSameCalendarDay(date, now)) {
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  }
+
+  if (date.getFullYear() === now.getFullYear()) {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  }
+
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
+    year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(new Date(timestamp));
+  }).format(date);
 }
 
 export function ChatWorkspace() {
@@ -169,7 +197,11 @@ export function ChatWorkspace() {
             {users === undefined ? (
               <p className="text-sm text-zinc-400">Loading users...</p>
             ) : users.length === 0 ? (
-              <p className="text-sm text-zinc-400">No matching users.</p>
+              <p className="text-sm text-zinc-400">
+                {searchText.trim()
+                  ? "No search results. Try another name."
+                  : "No other users found yet. Ask another user to sign in."}
+              </p>
             ) : (
               users.map((user) => {
                 const isStarting = startingConversationWith === user._id;
@@ -233,7 +265,7 @@ export function ChatWorkspace() {
                         {conversation.title}
                       </p>
                       <span className="shrink-0 text-[10px] text-zinc-500">
-                        {formatSidebarTime(conversation.lastMessageAt)}
+                        {formatChallengeTimestamp(conversation.lastMessageAt)}
                       </span>
                     </div>
                     <p className="mt-1 truncate text-xs text-zinc-400">
@@ -294,6 +326,9 @@ export function ChatWorkspace() {
                   >
                     <p className="text-[11px] opacity-70">{message.senderName}</p>
                     <p className="mt-1 text-sm">{message.body}</p>
+                    <p className="mt-1 text-[11px] opacity-70">
+                      {formatChallengeTimestamp(message.createdAt)}
+                    </p>
                   </div>
                 ))
               )}
