@@ -59,6 +59,12 @@ type ChatMessage = {
   isMine: boolean;
 };
 
+type TypingUser = {
+  userId: string;
+  name: string;
+  expiresAt: number;
+};
+
 const searchUsersRef = anyApi.users
   .searchDiscoverableUsers as FunctionReference<"query">;
 const getOrCreateDmConversationRef = anyApi.conversations
@@ -70,6 +76,9 @@ const listMyConversationsRef = anyApi.conversations
 const listConversationMessagesRef = anyApi.messages
   .listConversationMessages as FunctionReference<"query">;
 const sendMessageRef = anyApi.messages.sendMessage as FunctionReference<"mutation">;
+const setTypingStateRef = anyApi.typing
+  .setTypingState as FunctionReference<"mutation">;
+const getTypingUsersRef = anyApi.typing.getTypingUsers as FunctionReference<"query">;
 
 function isSameCalendarDay(a: Date, b: Date) {
   return (
@@ -142,16 +151,57 @@ export function ChatWorkspace() {
     listConversationMessagesRef,
     selectedConversationId ? { conversationId: selectedConversationId } : "skip",
   ) as ChatMessage[] | undefined;
+  const typingUsers = useQuery(
+    getTypingUsersRef,
+    selectedConversationId ? { conversationId: selectedConversationId } : "skip",
+  ) as TypingUser[] | undefined;
+
+  const getOrCreateDmConversation = useMutation(getOrCreateDmConversationRef);
+  const sendMessage = useMutation(sendMessageRef);
+  const setTypingState = useMutation(setTypingStateRef);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setNow(Date.now());
-    }, 10_000);
+    }, 1_000);
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const getOrCreateDmConversation = useMutation(getOrCreateDmConversationRef);
-  const sendMessage = useMutation(sendMessageRef);
+  useEffect(() => {
+    if (!selectedConversationId) {
+      return;
+    }
+
+    const trimmedDraft = draft.trim();
+    if (!trimmedDraft) {
+      void setTypingState({
+        conversationId: selectedConversationId,
+        isTyping: false,
+      });
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void setTypingState({
+        conversationId: selectedConversationId,
+        isTyping: true,
+      });
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [draft, selectedConversationId, setTypingState]);
+
+  useEffect(() => {
+    return () => {
+      if (!selectedConversationId) {
+        return;
+      }
+      void setTypingState({
+        conversationId: selectedConversationId,
+        isTyping: false,
+      });
+    };
+  }, [selectedConversationId, setTypingState]);
 
   const usersWithExistingConversation = useMemo(() => {
     if (!conversations) {
@@ -163,6 +213,12 @@ export function ChatWorkspace() {
         .filter((id): id is string => Boolean(id)),
     );
   }, [conversations]);
+
+  const activeTypingUsers = useMemo(
+    () =>
+      (typingUsers ?? []).filter((typingUser) => typingUser.expiresAt > now),
+    [typingUsers, now],
+  );
 
   async function handleStartConversation(otherUserId: string) {
     if (startingConversationWith) {
@@ -196,6 +252,10 @@ export function ChatWorkspace() {
       await sendMessage({
         conversationId: selectedConversationId,
         body,
+      });
+      await setTypingState({
+        conversationId: selectedConversationId,
+        isTyping: false,
       });
       setDraft("");
     } catch (error) {
@@ -413,6 +473,17 @@ export function ChatWorkspace() {
                     </p>
                   </div>
                 ))
+              )}
+            </div>
+
+            <div className="px-6 pb-2">
+              {activeTypingUsers.length > 0 ? (
+                <p className="text-xs text-zinc-400">
+                  {activeTypingUsers.map((typingUser) => typingUser.name).join(", ")}{" "}
+                  {activeTypingUsers.length > 1 ? "are typing..." : "is typing..."}
+                </p>
+              ) : (
+                <p className="text-xs text-transparent">typing</p>
               )}
             </div>
 

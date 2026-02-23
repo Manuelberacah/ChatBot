@@ -39,4 +39,13 @@ export default defineSchema({
   })
     .index("by_conversation_id", ["conversationId", "createdAt"])
     .index("by_sender_id", ["senderId"]),
+  typingEvents: defineTable({
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+    expiresAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_conversation_id", ["conversationId"])
+    .index("by_user_id", ["userId"])
+    .index("by_conversation_and_user", ["conversationId", "userId"]),
 });
