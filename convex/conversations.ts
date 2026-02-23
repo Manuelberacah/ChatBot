@@ -66,6 +66,68 @@ export const getOrCreateDmConversation = mutationGeneric({
   },
 });
 
+export const createGroupConversation = mutationGeneric({
+  args: {
+    name: v.string(),
+    memberIds: v.array(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!currentUser) {
+      throw new Error("User profile not found. Please refresh the app.");
+    }
+
+    const cleanedName = args.name.trim();
+    if (cleanedName.length < 2) {
+      throw new Error("Group name must be at least 2 characters");
+    }
+
+    const uniqueMemberIds = [...new Set(args.memberIds)];
+    const filteredMemberIds = uniqueMemberIds.filter((id) => id !== currentUser._id);
+    if (filteredMemberIds.length < 2) {
+      throw new Error("Select at least 2 other users to create a group");
+    }
+
+    const existingMembers = await Promise.all(
+      filteredMemberIds.map(async (memberId) => await ctx.db.get(memberId)),
+    );
+    if (existingMembers.some((member) => member === null)) {
+      throw new Error("One or more selected users do not exist");
+    }
+
+    const now = Date.now();
+    const conversationId = await ctx.db.insert("conversations", {
+      type: "group",
+      name: cleanedName,
+      createdBy: currentUser._id,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const allMemberIds = [currentUser._id, ...filteredMemberIds];
+    await Promise.all(
+      allMemberIds.map(async (memberId) => {
+        await ctx.db.insert("conversationMembers", {
+          conversationId,
+          userId: memberId,
+          joinedAt: now,
+          lastReadAt: now,
+        });
+      }),
+    );
+
+    return conversationId;
+  },
+});
+
 export const getConversationPreview = queryGeneric({
   args: {
     conversationId: v.id("conversations"),
@@ -125,6 +187,7 @@ export const getConversationPreview = queryGeneric({
 
     return {
       _id: conversation._id,
+      memberCount: participants.length,
       type: conversation.type,
       title:
         conversation.type === "dm"
@@ -219,6 +282,8 @@ export const listMyConversations = queryGeneric({
 
         return {
           _id: conversation._id,
+          type: conversation.type,
+          memberCount: participants.length,
           title:
             conversation.type === "dm"
               ? otherParticipant?.name ?? "Direct Message"

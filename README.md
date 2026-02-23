@@ -62,6 +62,7 @@ Optional:
 - [x] Soft delete own messages with deleted placeholder text
 - [x] Emoji message reactions (toggle + realtime counts)
 - [x] Loading skeletons + mutation error handling with retry
+- [x] Group chat creation with named conversations and member counts
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
