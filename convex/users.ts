@@ -60,3 +60,42 @@ export const getCurrentUserProfile = queryGeneric({
       .unique();
   },
 });
+
+export const searchDiscoverableUsers = queryGeneric({
+  args: {
+    searchText: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+
+    if (!currentUser) {
+      return [];
+    }
+
+    const searchText = (args.searchText ?? "").trim().toLowerCase();
+    const users = await ctx.db.query("users").withIndex("by_name").collect();
+
+    return users
+      .filter((user) => user._id !== currentUser._id)
+      .filter((user) =>
+        searchText.length === 0
+          ? true
+          : user.name.toLowerCase().includes(searchText),
+      )
+      .slice(0, 50)
+      .map((user) => ({
+        _id: user._id,
+        name: user.name,
+        imageUrl: user.imageUrl ?? null,
+        email: user.email ?? null,
+      }));
+  },
+});

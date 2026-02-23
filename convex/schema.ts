@@ -13,4 +13,22 @@ export default defineSchema({
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_name", ["name"]),
+  conversations: defineTable({
+    type: v.union(v.literal("dm"), v.literal("group")),
+    dmKey: v.optional(v.string()),
+    name: v.optional(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_dm_key", ["dmKey"])
+    .index("by_updated_at", ["updatedAt"]),
+  conversationMembers: defineTable({
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+    joinedAt: v.number(),
+  })
+    .index("by_conversation_id", ["conversationId"])
+    .index("by_user_id", ["userId"])
+    .index("by_conversation_and_user", ["conversationId", "userId"]),
 });
