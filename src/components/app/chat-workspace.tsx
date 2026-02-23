@@ -18,6 +18,7 @@ type ConversationListItem = {
   title: string;
   lastMessagePreview: string;
   lastMessageAt: number;
+  unreadCount: number;
   counterpart: {
     _id: string | null;
     name: string | null;
@@ -73,6 +74,8 @@ const getConversationPreviewRef = anyApi.conversations
   .getConversationPreview as FunctionReference<"query">;
 const listMyConversationsRef = anyApi.conversations
   .listMyConversations as FunctionReference<"query">;
+const markConversationAsReadRef = anyApi.conversations
+  .markConversationAsRead as FunctionReference<"mutation">;
 const listConversationMessagesRef = anyApi.messages
   .listConversationMessages as FunctionReference<"query">;
 const sendMessageRef = anyApi.messages.sendMessage as FunctionReference<"mutation">;
@@ -155,9 +158,12 @@ export function ChatWorkspace() {
     getTypingUsersRef,
     selectedConversationId ? { conversationId: selectedConversationId } : "skip",
   ) as TypingUser[] | undefined;
+  const latestMessageId =
+    messages && messages.length > 0 ? messages[messages.length - 1]._id : null;
 
   const getOrCreateDmConversation = useMutation(getOrCreateDmConversationRef);
   const sendMessage = useMutation(sendMessageRef);
+  const markConversationAsRead = useMutation(markConversationAsReadRef);
   const setTypingState = useMutation(setTypingStateRef);
 
   useEffect(() => {
@@ -190,6 +196,16 @@ export function ChatWorkspace() {
 
     return () => window.clearTimeout(timeoutId);
   }, [draft, selectedConversationId, setTypingState]);
+
+  useEffect(() => {
+    if (!selectedConversationId || messages === undefined) {
+      return;
+    }
+
+    void markConversationAsRead({
+      conversationId: selectedConversationId,
+    });
+  }, [latestMessageId, markConversationAsRead, messages, selectedConversationId]);
 
   useEffect(() => {
     return () => {
@@ -311,9 +327,16 @@ export function ChatWorkspace() {
                         />
                         <span className="truncate">{conversation.title}</span>
                       </p>
-                      <span className="shrink-0 text-[10px] text-zinc-500">
-                        {formatChallengeTimestamp(conversation.lastMessageAt)}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {conversation.unreadCount > 0 ? (
+                          <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-950">
+                            {conversation.unreadCount}
+                          </span>
+                        ) : null}
+                        <span className="text-[10px] text-zinc-500">
+                          {formatChallengeTimestamp(conversation.lastMessageAt)}
+                        </span>
+                      </div>
                     </div>
                     <p className="mt-1 truncate text-xs text-zinc-400">
                       {conversation.lastMessagePreview}
@@ -514,3 +537,4 @@ export function ChatWorkspace() {
     </section>
   );
 }
+

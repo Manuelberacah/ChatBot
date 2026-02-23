@@ -53,11 +53,13 @@ export const getOrCreateDmConversation = mutationGeneric({
       conversationId,
       userId: currentUser._id,
       joinedAt: now,
+      lastReadAt: now,
     });
     await ctx.db.insert("conversationMembers", {
       conversationId,
       userId: args.otherUserId,
       joinedAt: now,
+      lastReadAt: now,
     });
 
     return conversationId;
@@ -201,6 +203,20 @@ export const listMyConversations = queryGeneric({
           .order("desc")
           .first();
 
+        const membershipLastReadAt = membership.lastReadAt ?? 0;
+        const unreadCount = (
+          await ctx.db
+            .query("messages")
+            .withIndex("by_conversation_id", (q) =>
+              q.eq("conversationId", conversation._id),
+            )
+            .collect()
+        ).filter(
+          (message) =>
+            message.senderId !== currentUser._id &&
+            message.createdAt > membershipLastReadAt,
+        ).length;
+
         return {
           _id: conversation._id,
           title:
@@ -218,6 +234,7 @@ export const listMyConversations = queryGeneric({
               : null,
           lastMessagePreview: latestMessage?.body ?? "No messages yet",
           lastMessageAt: latestMessage?.createdAt ?? conversation.updatedAt,
+          unreadCount,
           participants,
         };
       }),
@@ -226,5 +243,42 @@ export const listMyConversations = queryGeneric({
     return conversationRows
       .filter((row) => row !== null)
       .sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+  },
+});
+
+export const markConversationAsRead = mutationGeneric({
+  args: {
+    conversationId: v.id("conversations"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!currentUser) {
+      throw new Error("User profile not found. Please refresh the app.");
+    }
+
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_conversation_and_user", (q) =>
+        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+      )
+      .unique();
+    if (!membership) {
+      throw new Error("Forbidden: you are not a member of this conversation");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(membership._id, {
+      lastReadAt: now,
+    });
+
+    return { conversationId: args.conversationId, lastReadAt: now };
   },
 });
