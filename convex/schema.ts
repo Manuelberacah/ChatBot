@@ -27,6 +27,7 @@ export default defineSchema({
     conversationId: v.id("conversations"),
     userId: v.id("users"),
     joinedAt: v.number(),
+    lastReadAt: v.number(),
   })
     .index("by_conversation_id", ["conversationId"])
     .index("by_user_id", ["userId"])

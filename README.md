@@ -57,6 +57,7 @@ Optional:
 - [x] Responsive layout: desktop split view + mobile full-screen chat with back button
 - [x] Real-time online/offline presence indicators
 - [x] Real-time typing indicator with inactivity timeout
+- [x] Unread message count badges with clear-on-open
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
