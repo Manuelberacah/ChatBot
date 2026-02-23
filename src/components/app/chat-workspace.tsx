@@ -15,6 +15,8 @@ type DiscoverableUser = {
 
 type ConversationListItem = {
   _id: string;
+  type: "dm" | "group";
+  memberCount: number;
   title: string;
   lastMessagePreview: string;
   lastMessageAt: number;
@@ -36,6 +38,7 @@ type ConversationListItem = {
 type ConversationPreview = {
   _id: string;
   type: "dm" | "group";
+  memberCount: number;
   title: string;
   counterpart: {
     _id: string | null;
@@ -82,6 +85,8 @@ const listMyConversationsRef = anyApi.conversations
   .listMyConversations as FunctionReference<"query">;
 const markConversationAsReadRef = anyApi.conversations
   .markConversationAsRead as FunctionReference<"mutation">;
+const createGroupConversationRef = anyApi.conversations
+  .createGroupConversation as FunctionReference<"mutation">;
 const listConversationMessagesRef = anyApi.messages
   .listConversationMessages as FunctionReference<"query">;
 const sendMessageRef = anyApi.messages.sendMessage as FunctionReference<"mutation">;
@@ -148,9 +153,12 @@ export function ChatWorkspace() {
   const searchParams = useSearchParams();
 
   const [searchText, setSearchText] = useState("");
+  const [groupName, setGroupName] = useState("");
+  const [groupMemberIds, setGroupMemberIds] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
   const [startingConversationWith, setStartingConversationWith] =
     useState<string | null>(null);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [showNewMessagesButton, setShowNewMessagesButton] = useState(false);
@@ -184,6 +192,7 @@ export function ChatWorkspace() {
     messages && messages.length > 0 ? messages[messages.length - 1]._id : null;
 
   const getOrCreateDmConversation = useMutation(getOrCreateDmConversationRef);
+  const createGroupConversation = useMutation(createGroupConversationRef);
   const sendMessage = useMutation(sendMessageRef);
   const deleteOwnMessage = useMutation(deleteOwnMessageRef);
   const toggleReaction = useMutation(toggleReactionRef);
@@ -346,6 +355,45 @@ export function ChatWorkspace() {
     }
   }
 
+  function toggleGroupMember(userId: string) {
+    setGroupMemberIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+    );
+  }
+
+  async function handleCreateGroupConversation() {
+    if (isCreatingGroup) {
+      return;
+    }
+
+    const cleanedName = groupName.trim();
+    if (!cleanedName) {
+      setErrorMessage("Please provide a group name.");
+      return;
+    }
+    if (groupMemberIds.length < 2) {
+      setErrorMessage("Select at least 2 users to create a group.");
+      return;
+    }
+
+    try {
+      setErrorMessage(null);
+      setIsCreatingGroup(true);
+      const conversationId = await createGroupConversation({
+        name: cleanedName,
+        memberIds: groupMemberIds,
+      });
+      setGroupName("");
+      setGroupMemberIds([]);
+      router.push(`/app?conversationId=${conversationId}`);
+    } catch (error) {
+      console.error("Failed to create group conversation", error);
+      setErrorMessage("Could not create group conversation. Please try again.");
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  }
+
   async function handleSendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedConversationId || isSending) {
@@ -471,11 +519,17 @@ export function ChatWorkspace() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-zinc-100">
-                        <span
-                          className={`inline-block size-2 shrink-0 rounded-full ${
-                            otherUserIsOnline ? "bg-emerald-400" : "bg-zinc-600"
-                          }`}
-                        />
+                        {conversation.type === "dm" ? (
+                          <span
+                            className={`inline-block size-2 shrink-0 rounded-full ${
+                              otherUserIsOnline ? "bg-emerald-400" : "bg-zinc-600"
+                            }`}
+                          />
+                        ) : (
+                          <span className="inline-block shrink-0 text-[10px] text-zinc-400">
+                            grp
+                          </span>
+                        )}
                         <span className="truncate">{conversation.title}</span>
                       </p>
                       <div className="flex shrink-0 items-center gap-2">
@@ -489,6 +543,11 @@ export function ChatWorkspace() {
                         </span>
                       </div>
                     </div>
+                    {conversation.type === "group" ? (
+                      <p className="mt-1 text-[10px] text-zinc-500">
+                        {conversation.memberCount} members
+                      </p>
+                    ) : null}
                     <p className="mt-1 truncate text-xs text-zinc-400">
                       {conversation.lastMessagePreview}
                     </p>
@@ -570,6 +629,50 @@ export function ChatWorkspace() {
               })
             )}
           </div>
+
+          <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+            <p className="text-sm font-medium text-zinc-100">Create group chat</p>
+            <p className="mt-1 text-xs text-zinc-400">
+              Pick at least 2 users and give your group a name.
+            </p>
+            <input
+              type="text"
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
+              placeholder="Group name..."
+              className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none ring-zinc-500 focus:ring-2"
+            />
+            <div className="mt-3 max-h-36 space-y-1 overflow-y-auto pr-1">
+              {(users ?? []).map((user) => {
+                const selected = groupMemberIds.includes(user._id);
+                return (
+                  <button
+                    key={`group-${user._id}`}
+                    type="button"
+                    onClick={() => toggleGroupMember(user._id)}
+                    className={`flex w-full items-center justify-between rounded-md border px-2 py-1 text-left text-xs ${
+                      selected
+                        ? "border-emerald-400 bg-emerald-500/10 text-emerald-200"
+                        : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500"
+                    }`}
+                  >
+                    <span className="truncate">{user.name}</span>
+                    <span>{selected ? "Selected" : "Select"}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={handleCreateGroupConversation}
+              disabled={isCreatingGroup}
+              className="mt-3 w-full rounded-lg bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isCreatingGroup
+                ? "Creating group..."
+                : `Create group (${groupMemberIds.length} selected)`}
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -634,12 +737,18 @@ export function ChatWorkspace() {
                 Back
               </button>
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                Direct Message
+                {selectedConversation.type === "group"
+                  ? "Group Chat"
+                  : "Direct Message"}
               </p>
               <h3 className="mt-1 text-xl font-semibold">
                 {selectedConversation.title}
               </h3>
-              {selectedConversation.counterpart ? (
+              {selectedConversation.type === "group" ? (
+                <p className="mt-2 text-xs text-zinc-400">
+                  {selectedConversation.memberCount} members
+                </p>
+              ) : selectedConversation.counterpart ? (
                 <p className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
                   <span
                     className={`inline-block size-2 rounded-full ${
