@@ -61,6 +61,7 @@ Optional:
 - [x] Smart auto-scroll with "New messages" jump button
 - [x] Soft delete own messages with deleted placeholder text
 - [x] Emoji message reactions (toggle + realtime counts)
+- [x] Loading skeletons + mutation error handling with retry
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
