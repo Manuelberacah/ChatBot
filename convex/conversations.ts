@@ -232,7 +232,11 @@ export const listMyConversations = queryGeneric({
                   lastSeenAt: otherParticipant?.lastSeenAt ?? null,
                 }
               : null,
-          lastMessagePreview: latestMessage?.body ?? "No messages yet",
+          lastMessagePreview: latestMessage
+            ? latestMessage.deletedAt
+              ? "This message was deleted"
+              : latestMessage.body
+            : "No messages yet",
           lastMessageAt: latestMessage?.createdAt ?? conversation.updatedAt,
           unreadCount,
           participants,

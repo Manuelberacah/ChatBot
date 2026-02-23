@@ -58,6 +58,7 @@ type ChatMessage = {
   body: string;
   createdAt: number;
   isMine: boolean;
+  isDeleted: boolean;
 };
 
 type TypingUser = {
@@ -79,6 +80,8 @@ const markConversationAsReadRef = anyApi.conversations
 const listConversationMessagesRef = anyApi.messages
   .listConversationMessages as FunctionReference<"query">;
 const sendMessageRef = anyApi.messages.sendMessage as FunctionReference<"mutation">;
+const deleteOwnMessageRef = anyApi.messages
+  .deleteOwnMessage as FunctionReference<"mutation">;
 const setTypingStateRef = anyApi.typing
   .setTypingState as FunctionReference<"mutation">;
 const getTypingUsersRef = anyApi.typing.getTypingUsers as FunctionReference<"query">;
@@ -173,6 +176,7 @@ export function ChatWorkspace() {
 
   const getOrCreateDmConversation = useMutation(getOrCreateDmConversationRef);
   const sendMessage = useMutation(sendMessageRef);
+  const deleteOwnMessage = useMutation(deleteOwnMessageRef);
   const markConversationAsRead = useMutation(markConversationAsReadRef);
   const setTypingState = useMutation(setTypingStateRef);
 
@@ -356,6 +360,14 @@ export function ChatWorkspace() {
       console.error("Failed to send message", error);
     } finally {
       setIsSending(false);
+    }
+  }
+
+  async function handleDeleteMessage(messageId: string) {
+    try {
+      await deleteOwnMessage({ messageId });
+    } catch (error) {
+      console.error("Failed to delete message", error);
     }
   }
 
@@ -565,14 +577,29 @@ export function ChatWorkspace() {
                 messages.map((message) => (
                   <div
                     key={message._id}
-                    className={`max-w-[80%] rounded-xl px-3 py-2 ${
+                    className={`group relative max-w-[80%] rounded-xl px-3 py-2 ${
                       message.isMine
                         ? "ml-auto bg-zinc-100 text-zinc-900"
                         : "bg-zinc-800 text-zinc-100"
                     }`}
                   >
+                    {message.isMine && !message.isDeleted ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMessage(message._id)}
+                        className="absolute -top-2 -left-2 hidden rounded-full border border-zinc-500 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-100 hover:bg-zinc-800 group-hover:block"
+                      >
+                        Delete
+                      </button>
+                    ) : null}
                     <p className="text-[11px] opacity-70">{message.senderName}</p>
-                    <p className="mt-1 text-sm">{message.body}</p>
+                    {message.isDeleted ? (
+                      <p className="mt-1 text-sm italic opacity-80">
+                        This message was deleted
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm">{message.body}</p>
+                    )}
                     <p className="mt-1 text-[11px] opacity-70">
                       {formatChallengeTimestamp(message.createdAt)}
                     </p>

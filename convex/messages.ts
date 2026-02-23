@@ -51,6 +51,60 @@ export const sendMessage = mutationGeneric({
   },
 });
 
+export const deleteOwnMessage = mutationGeneric({
+  args: {
+    messageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!currentUser) {
+      throw new Error("User profile not found. Please refresh the app.");
+    }
+
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new Error("Message not found");
+    }
+    if (message.senderId !== currentUser._id) {
+      throw new Error("Forbidden: you can delete only your own messages");
+    }
+    if (message.deletedAt) {
+      return args.messageId;
+    }
+
+    const membership = await ctx.db
+      .query("conversationMembers")
+      .withIndex("by_conversation_and_user", (q) =>
+        q.eq("conversationId", message.conversationId).eq("userId", currentUser._id),
+      )
+      .unique();
+    if (!membership) {
+      throw new Error("Forbidden: conversation membership required");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.messageId, {
+      deletedAt: now,
+      deletedBy: currentUser._id,
+      body: "",
+    });
+
+    await ctx.db.patch(message.conversationId, {
+      updatedAt: now,
+    });
+
+    return args.messageId;
+  },
+});
+
 export const listConversationMessages = queryGeneric({
   args: {
     conversationId: v.id("conversations"),
@@ -112,6 +166,7 @@ export const listConversationMessages = queryGeneric({
       body: message.body,
       createdAt: message.createdAt,
       isMine: message.senderId === currentUser._id,
+      isDeleted: Boolean(message.deletedAt),
     }));
   },
 });
