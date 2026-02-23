@@ -155,6 +155,8 @@ export function ChatWorkspace() {
   const [now, setNow] = useState(() => Date.now());
   const [showNewMessagesButton, setShowNewMessagesButton] = useState(false);
   const [userIsNearBottom, setUserIsNearBottom] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [failedMessageDraft, setFailedMessageDraft] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const selectedConversationId = searchParams.get("conversationId");
@@ -332,11 +334,13 @@ export function ChatWorkspace() {
     }
 
     try {
+      setErrorMessage(null);
       setStartingConversationWith(otherUserId);
       const conversationId = await getOrCreateDmConversation({ otherUserId });
       router.push(`/app?conversationId=${conversationId}`);
     } catch (error) {
       console.error("Failed to open conversation", error);
+      setErrorMessage("Could not open conversation. Please try again.");
     } finally {
       setStartingConversationWith(null);
     }
@@ -354,6 +358,8 @@ export function ChatWorkspace() {
     }
 
     try {
+      setErrorMessage(null);
+      setFailedMessageDraft(null);
       setIsSending(true);
       await sendMessage({
         conversationId: selectedConversationId,
@@ -366,6 +372,8 @@ export function ChatWorkspace() {
       setDraft("");
     } catch (error) {
       console.error("Failed to send message", error);
+      setFailedMessageDraft(body);
+      setErrorMessage("Message failed to send.");
     } finally {
       setIsSending(false);
     }
@@ -373,17 +381,47 @@ export function ChatWorkspace() {
 
   async function handleDeleteMessage(messageId: string) {
     try {
+      setErrorMessage(null);
       await deleteOwnMessage({ messageId });
     } catch (error) {
       console.error("Failed to delete message", error);
+      setErrorMessage("Could not delete message. Please try again.");
     }
   }
 
   async function handleToggleReaction(messageId: string, emoji: string) {
     try {
+      setErrorMessage(null);
       await toggleReaction({ messageId, emoji });
     } catch (error) {
       console.error("Failed to toggle reaction", error);
+      setErrorMessage("Could not update reaction. Please try again.");
+    }
+  }
+
+  async function handleRetryFailedMessage() {
+    if (!selectedConversationId || !failedMessageDraft || isSending) {
+      return;
+    }
+
+    try {
+      setErrorMessage(null);
+      setIsSending(true);
+      await sendMessage({
+        conversationId: selectedConversationId,
+        body: failedMessageDraft,
+      });
+      await setTypingState({
+        conversationId: selectedConversationId,
+        isTyping: false,
+      });
+      setFailedMessageDraft(null);
+      setDraft("");
+    } catch (error) {
+      console.error("Failed to retry message", error);
+      setErrorMessage("Retry failed. Check connection and try again.");
+    } finally {
+      setIsSending(false);
     }
   }
 
@@ -398,7 +436,14 @@ export function ChatWorkspace() {
           <h2 className="text-lg font-semibold">Conversations</h2>
           <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
             {conversations === undefined ? (
-              <p className="text-sm text-zinc-400">Loading conversations...</p>
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={`conversation-skeleton-${index}`}
+                    className="h-12 animate-pulse rounded-lg border border-zinc-800 bg-zinc-800/50"
+                  />
+                ))}
+              </div>
             ) : conversations.length === 0 ? (
               <p className="text-sm text-zinc-400">
                 No conversations yet. Start one from the user list.
@@ -471,7 +516,14 @@ export function ChatWorkspace() {
           </label>
           <div className="mt-3 max-h-52 space-y-2 overflow-y-auto pr-1">
             {users === undefined ? (
-              <p className="text-sm text-zinc-400">Loading users...</p>
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div
+                    key={`user-skeleton-${index}`}
+                    className="h-11 animate-pulse rounded-lg border border-zinc-800 bg-zinc-800/50"
+                  />
+                ))}
+              </div>
             ) : users.length === 0 ? (
               <p className="text-sm text-zinc-400">
                 {searchText.trim()
@@ -526,6 +578,35 @@ export function ChatWorkspace() {
           isMobileChatOpen ? "flex" : "hidden md:flex"
         }`}
       >
+        {errorMessage ? (
+          <div className="mx-4 mt-4 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            <div className="flex items-center justify-between gap-3">
+              <span>{errorMessage}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMessage(null)}
+                className="rounded border border-red-300/30 px-2 py-0.5 text-xs hover:bg-red-500/20"
+              >
+                Dismiss
+              </button>
+            </div>
+            {failedMessageDraft ? (
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRetryFailedMessage}
+                  className="rounded border border-red-300/40 bg-red-500/20 px-2 py-1 text-xs hover:bg-red-500/30"
+                >
+                  Retry send
+                </button>
+                <span className="truncate text-xs opacity-90">
+                  {failedMessageDraft}
+                </span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         {!selectedConversationId ? (
           <div className="p-6">
             <p className="text-sm text-zinc-400">No conversation selected</p>
@@ -584,7 +665,16 @@ export function ChatWorkspace() {
               className="flex-1 space-y-3 overflow-y-auto px-6 py-4"
             >
               {messages === undefined ? (
-                <p className="text-sm text-zinc-400">Loading messages...</p>
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <div
+                      key={`message-skeleton-${index}`}
+                      className={`h-14 animate-pulse rounded-xl bg-zinc-800/70 ${
+                        index % 2 === 0 ? "ml-auto w-2/3" : "w-3/4"
+                      }`}
+                    />
+                  ))}
+                </div>
               ) : messages.length === 0 ? (
                 <p className="text-sm text-zinc-400">
                   No messages yet. Send the first message.
