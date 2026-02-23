@@ -45,6 +45,9 @@ Optional:
 - [x] Clerk setup (middleware + sign-in/sign-up routes)
 - [x] Convex client provider wiring
 - [x] Protected app shell route
+- [x] Convex users schema and auth config
+- [x] Clerk-to-Convex user profile sync on app load
+- [x] Header with logged-in user name + avatar/logout menu
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
@@ -66,6 +69,7 @@ NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_SIGN_IN_FORCE_REDIRECT_URL=/app
 NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL=/app
+CLERK_JWT_ISSUER_DOMAIN=
 NEXT_PUBLIC_CONVEX_URL=
 ```
 
@@ -89,6 +93,9 @@ App URL: `http://localhost:3000`
 - `src/app` - Next.js app router pages/layouts
 - `src/middleware.ts` - Clerk auth protection
 - `src/components/providers/convex-client-provider.tsx` - Convex + Clerk provider
+- `src/components/app/user-sync.tsx` - Sync signed-in Clerk user to Convex
+- `convex/schema.ts` - Convex data model
+- `convex/users.ts` - user profile mutations/queries
 
 ## Deployment
 
