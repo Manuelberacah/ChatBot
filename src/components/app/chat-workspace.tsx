@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi, type FunctionReference } from "convex/server";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type DiscoverableUser = {
   _id: string;
@@ -121,9 +121,16 @@ function formatChallengeTimestamp(timestamp: number) {
 }
 
 const ONLINE_THRESHOLD_MS = 30_000;
+const AUTO_SCROLL_THRESHOLD_PX = 80;
 
 function isOnline(lastSeenAt: number, now: number) {
   return now - lastSeenAt <= ONLINE_THRESHOLD_MS;
+}
+
+function isNearBottom(container: HTMLDivElement) {
+  const distanceFromBottom =
+    container.scrollHeight - container.scrollTop - container.clientHeight;
+  return distanceFromBottom <= AUTO_SCROLL_THRESHOLD_PX;
 }
 
 export function ChatWorkspace() {
@@ -136,6 +143,9 @@ export function ChatWorkspace() {
     useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [showNewMessagesButton, setShowNewMessagesButton] = useState(false);
+  const [userIsNearBottom, setUserIsNearBottom] = useState(true);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const selectedConversationId = searchParams.get("conversationId");
   const isMobileChatOpen = Boolean(selectedConversationId);
@@ -208,6 +218,49 @@ export function ChatWorkspace() {
   }, [latestMessageId, markConversationAsRead, messages, selectedConversationId]);
 
   useEffect(() => {
+    if (!selectedConversationId) {
+      setShowNewMessagesButton(false);
+      setUserIsNearBottom(true);
+      return;
+    }
+
+    setShowNewMessagesButton(false);
+    setUserIsNearBottom(true);
+    const timeoutId = window.setTimeout(() => {
+      const container = messagesContainerRef.current;
+      if (!container) {
+        return;
+      }
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "auto",
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container || messages === undefined) {
+      return;
+    }
+
+    if (userIsNearBottom) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+      setShowNewMessagesButton(false);
+      return;
+    }
+
+    if (messages.length > 0) {
+      setShowNewMessagesButton(true);
+    }
+  }, [latestMessageId, messages, userIsNearBottom]);
+
+  useEffect(() => {
     return () => {
       if (!selectedConversationId) {
         return;
@@ -235,6 +288,31 @@ export function ChatWorkspace() {
       (typingUsers ?? []).filter((typingUser) => typingUser.expiresAt > now),
     [typingUsers, now],
   );
+
+  function scrollMessagesToBottom() {
+    const container = messagesContainerRef.current;
+    if (!container) {
+      return;
+    }
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
+    setShowNewMessagesButton(false);
+    setUserIsNearBottom(true);
+  }
+
+  function handleMessagesScroll() {
+    const container = messagesContainerRef.current;
+    if (!container) {
+      return;
+    }
+    const nearBottom = isNearBottom(container);
+    setUserIsNearBottom(nearBottom);
+    if (nearBottom) {
+      setShowNewMessagesButton(false);
+    }
+  }
 
   async function handleStartConversation(otherUserId: string) {
     if (startingConversationWith) {
@@ -472,7 +550,11 @@ export function ChatWorkspace() {
               ) : null}
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleMessagesScroll}
+              className="flex-1 space-y-3 overflow-y-auto px-6 py-4"
+            >
               {messages === undefined ? (
                 <p className="text-sm text-zinc-400">Loading messages...</p>
               ) : messages.length === 0 ? (
@@ -497,6 +579,18 @@ export function ChatWorkspace() {
                   </div>
                 ))
               )}
+            </div>
+
+            <div className="px-6">
+              {showNewMessagesButton ? (
+                <button
+                  type="button"
+                  onClick={scrollMessagesToBottom}
+                  className="rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs text-zinc-100 hover:bg-zinc-700"
+                >
+                  New messages ↓
+                </button>
+              ) : null}
             </div>
 
             <div className="px-6 pb-2">
