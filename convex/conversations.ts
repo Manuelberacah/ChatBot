@@ -114,6 +114,7 @@ export const getConversationPreview = queryGeneric({
         _id: profile._id,
         name: profile.name,
         imageUrl: profile.imageUrl ?? null,
+        lastSeenAt: profile.lastSeenAt,
       }));
 
     const otherParticipant = participants.find(
@@ -127,6 +128,15 @@ export const getConversationPreview = queryGeneric({
         conversation.type === "dm"
           ? otherParticipant?.name ?? "Direct Message"
           : conversation.name ?? "Group",
+      counterpart:
+        conversation.type === "dm"
+          ? {
+              _id: otherParticipant?._id ?? null,
+              name: otherParticipant?.name ?? null,
+              imageUrl: otherParticipant?.imageUrl ?? null,
+              lastSeenAt: otherParticipant?.lastSeenAt ?? null,
+            }
+          : null,
       participants,
     };
   },
@@ -176,6 +186,7 @@ export const listMyConversations = queryGeneric({
             _id: profile._id,
             name: profile.name,
             imageUrl: profile.imageUrl ?? null,
+            lastSeenAt: profile.lastSeenAt,
           }));
 
         const otherParticipant = participants.find(
@@ -196,6 +207,15 @@ export const listMyConversations = queryGeneric({
             conversation.type === "dm"
               ? otherParticipant?.name ?? "Direct Message"
               : conversation.name ?? "Group",
+          counterpart:
+            conversation.type === "dm"
+              ? {
+                  _id: otherParticipant?._id ?? null,
+                  name: otherParticipant?.name ?? null,
+                  imageUrl: otherParticipant?.imageUrl ?? null,
+                  lastSeenAt: otherParticipant?.lastSeenAt ?? null,
+                }
+              : null,
           lastMessagePreview: latestMessage?.body ?? "No messages yet",
           lastMessageAt: latestMessage?.createdAt ?? conversation.updatedAt,
           participants,

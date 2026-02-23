@@ -96,6 +96,33 @@ export const searchDiscoverableUsers = queryGeneric({
         name: user.name,
         imageUrl: user.imageUrl ?? null,
         email: user.email ?? null,
+        lastSeenAt: user.lastSeenAt,
       }));
+  },
+});
+
+export const touchCurrentUserPresence = mutationGeneric({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!currentUser) {
+      throw new Error("User profile not found. Please refresh the app.");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(currentUser._id, {
+      lastSeenAt: now,
+      updatedAt: now,
+    });
+
+    return { lastSeenAt: now };
   },
 });

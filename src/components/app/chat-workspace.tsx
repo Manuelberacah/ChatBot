@@ -3,13 +3,14 @@
 import { useMutation, useQuery } from "convex/react";
 import { anyApi, type FunctionReference } from "convex/server";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type DiscoverableUser = {
   _id: string;
   name: string;
   imageUrl: string | null;
   email: string | null;
+  lastSeenAt: number;
 };
 
 type ConversationListItem = {
@@ -17,10 +18,17 @@ type ConversationListItem = {
   title: string;
   lastMessagePreview: string;
   lastMessageAt: number;
+  counterpart: {
+    _id: string | null;
+    name: string | null;
+    imageUrl: string | null;
+    lastSeenAt: number | null;
+  } | null;
   participants: Array<{
     _id: string;
     name: string;
     imageUrl: string | null;
+    lastSeenAt: number;
   }>;
 };
 
@@ -28,10 +36,17 @@ type ConversationPreview = {
   _id: string;
   type: "dm" | "group";
   title: string;
+  counterpart: {
+    _id: string | null;
+    name: string | null;
+    imageUrl: string | null;
+    lastSeenAt: number | null;
+  } | null;
   participants: Array<{
     _id: string;
     name: string;
     imageUrl: string | null;
+    lastSeenAt: number;
   }>;
 };
 
@@ -93,6 +108,12 @@ function formatChallengeTimestamp(timestamp: number) {
   }).format(date);
 }
 
+const ONLINE_THRESHOLD_MS = 30_000;
+
+function isOnline(lastSeenAt: number, now: number) {
+  return now - lastSeenAt <= ONLINE_THRESHOLD_MS;
+}
+
 export function ChatWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -102,6 +123,7 @@ export function ChatWorkspace() {
   const [startingConversationWith, setStartingConversationWith] =
     useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   const selectedConversationId = searchParams.get("conversationId");
   const isMobileChatOpen = Boolean(selectedConversationId);
@@ -121,6 +143,13 @@ export function ChatWorkspace() {
     selectedConversationId ? { conversationId: selectedConversationId } : "skip",
   ) as ChatMessage[] | undefined;
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now());
+    }, 10_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   const getOrCreateDmConversation = useMutation(getOrCreateDmConversationRef);
   const sendMessage = useMutation(sendMessageRef);
 
@@ -129,9 +158,9 @@ export function ChatWorkspace() {
       return new Set<string>();
     }
     return new Set(
-      conversations.flatMap((conversation) =>
-        conversation.participants.map((participant) => participant._id),
-      ),
+      conversations
+        .map((conversation) => conversation.counterpart?._id)
+        .filter((id): id is string => Boolean(id)),
     );
   }, [conversations]);
 
@@ -195,6 +224,11 @@ export function ChatWorkspace() {
             ) : (
               conversations.map((conversation) => {
                 const isActive = selectedConversationId === conversation._id;
+                const otherUserIsOnline =
+                  conversation.counterpart?.lastSeenAt !== null &&
+                  conversation.counterpart?.lastSeenAt !== undefined
+                    ? isOnline(conversation.counterpart.lastSeenAt, now)
+                  : false;
                 return (
                   <button
                     key={conversation._id}
@@ -209,8 +243,13 @@ export function ChatWorkspace() {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-medium text-zinc-100">
-                        {conversation.title}
+                      <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-zinc-100">
+                        <span
+                          className={`inline-block size-2 shrink-0 rounded-full ${
+                            otherUserIsOnline ? "bg-emerald-400" : "bg-zinc-600"
+                          }`}
+                        />
+                        <span className="truncate">{conversation.title}</span>
                       </p>
                       <span className="shrink-0 text-[10px] text-zinc-500">
                         {formatChallengeTimestamp(conversation.lastMessageAt)}
@@ -262,8 +301,17 @@ export function ChatWorkspace() {
                     className="flex w-full items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-left transition hover:border-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-zinc-100">
-                        {user.name}
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`inline-block size-2 rounded-full ${
+                            isOnline(user.lastSeenAt, now)
+                              ? "bg-emerald-400"
+                              : "bg-zinc-600"
+                          }`}
+                        />
+                        <span className="truncate text-sm font-medium text-zinc-100">
+                          {user.name}
+                        </span>
                       </span>
                       <span className="block truncate text-xs text-zinc-400">
                         {user.email ?? "No email"}
@@ -321,6 +369,24 @@ export function ChatWorkspace() {
               <h3 className="mt-1 text-xl font-semibold">
                 {selectedConversation.title}
               </h3>
+              {selectedConversation.counterpart ? (
+                <p className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
+                  <span
+                    className={`inline-block size-2 rounded-full ${
+                      selectedConversation.counterpart?.lastSeenAt !== null &&
+                      selectedConversation.counterpart?.lastSeenAt !== undefined &&
+                      isOnline(selectedConversation.counterpart.lastSeenAt, now)
+                        ? "bg-emerald-400"
+                        : "bg-zinc-600"
+                    }`}
+                  />
+                  {selectedConversation.counterpart?.lastSeenAt !== null &&
+                  selectedConversation.counterpart?.lastSeenAt !== undefined &&
+                  isOnline(selectedConversation.counterpart.lastSeenAt, now)
+                    ? "Online"
+                    : "Offline"}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
