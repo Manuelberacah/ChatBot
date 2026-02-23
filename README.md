@@ -55,6 +55,7 @@ Optional:
 - [x] Challenge-compliant timestamp formatting (today vs older vs older year)
 - [x] Explicit empty states for search, conversations, and messages
 - [x] Responsive layout: desktop split view + mobile full-screen chat with back button
+- [x] Real-time online/offline presence indicators
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
@@ -102,6 +103,7 @@ App URL: `http://localhost:3000`
 - `src/components/providers/convex-client-provider.tsx` - Convex + Clerk provider
 - `src/components/app/user-sync.tsx` - Sync signed-in Clerk user to Convex
 - `src/components/app/chat-workspace.tsx` - User discovery + conversations sidebar + realtime chat thread
+- `src/components/app/presence-heartbeat.tsx` - periodic presence updates while app is open
 - `convex/schema.ts` - Convex data model
 - `convex/users.ts` - user profile mutations/queries
 - `convex/conversations.ts` - conversation bootstrap + preview queries

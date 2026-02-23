@@ -1,5 +1,6 @@
 import { UserButton } from "@clerk/nextjs";
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { PresenceHeartbeat } from "@/components/app/presence-heartbeat";
 import { UserSync } from "@/components/app/user-sync";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <UserSync />
+      <PresenceHeartbeat />
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between px-4">
           <div>
