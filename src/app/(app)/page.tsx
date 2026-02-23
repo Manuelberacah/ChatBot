@@ -1,5 +1,5 @@
-import { UserDiscoveryPanel } from "@/components/app/user-discovery-panel";
+import { ChatWorkspace } from "@/components/app/chat-workspace";
 
 export default function AppShellPage() {
-  return <UserDiscoveryPanel />;
+  return <ChatWorkspace />;
 }
