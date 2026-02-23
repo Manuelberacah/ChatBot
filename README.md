@@ -56,6 +56,7 @@ Optional:
 - [x] Explicit empty states for search, conversations, and messages
 - [x] Responsive layout: desktop split view + mobile full-screen chat with back button
 - [x] Real-time online/offline presence indicators
+- [x] Real-time typing indicator with inactivity timeout
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
@@ -108,6 +109,7 @@ App URL: `http://localhost:3000`
 - `convex/users.ts` - user profile mutations/queries
 - `convex/conversations.ts` - conversation bootstrap + preview queries
 - `convex/messages.ts` - send/list realtime direct messages
+- `convex/typing.ts` - typing state mutations/queries
 
 ## Deployment
 
