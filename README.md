@@ -48,6 +48,8 @@ Optional:
 - [x] Convex users schema and auth config
 - [x] Clerk-to-Convex user profile sync on app load
 - [x] Header with logged-in user name + avatar/logout menu
+- [x] User discovery list (excluding self) + live search
+- [x] Create/open one-to-one conversation on user click
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
@@ -94,8 +96,10 @@ App URL: `http://localhost:3000`
 - `src/middleware.ts` - Clerk auth protection
 - `src/components/providers/convex-client-provider.tsx` - Convex + Clerk provider
 - `src/components/app/user-sync.tsx` - Sync signed-in Clerk user to Convex
+- `src/components/app/user-discovery-panel.tsx` - User list, live search, and start DM flow
 - `convex/schema.ts` - Convex data model
 - `convex/users.ts` - user profile mutations/queries
+- `convex/conversations.ts` - conversation bootstrap + preview queries
 
 ## Deployment
 
