@@ -37,6 +37,8 @@ export default defineSchema({
     senderId: v.id("users"),
     body: v.string(),
     createdAt: v.number(),
+    deletedAt: v.optional(v.number()),
+    deletedBy: v.optional(v.id("users")),
   })
     .index("by_conversation_id", ["conversationId", "createdAt"])
     .index("by_sender_id", ["senderId"]),

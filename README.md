@@ -59,6 +59,7 @@ Optional:
 - [x] Real-time typing indicator with inactivity timeout
 - [x] Unread message count badges with clear-on-open
 - [x] Smart auto-scroll with "New messages" jump button
+- [x] Soft delete own messages with deleted placeholder text
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup
