@@ -54,6 +54,7 @@ Optional:
 - [x] Conversation sidebar with latest message preview
 - [x] Challenge-compliant timestamp formatting (today vs older vs older year)
 - [x] Explicit empty states for search, conversations, and messages
+- [x] Responsive layout: desktop split view + mobile full-screen chat with back button
 - [ ] Remaining messaging features (in upcoming PRs)
 
 ## Local Setup

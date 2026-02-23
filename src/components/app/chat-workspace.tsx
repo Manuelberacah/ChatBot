@@ -104,6 +104,7 @@ export function ChatWorkspace() {
   const [isSending, setIsSending] = useState(false);
 
   const selectedConversationId = searchParams.get("conversationId");
+  const isMobileChatOpen = Boolean(selectedConversationId);
   const users = useQuery(searchUsersRef, {
     searchText,
   }) as DiscoverableUser[] | undefined;
@@ -177,8 +178,55 @@ export function ChatWorkspace() {
 
   return (
     <section className="grid gap-6 md:grid-cols-[340px_1fr]">
-      <aside className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <aside
+        className={`space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 ${
+          isMobileChatOpen ? "hidden md:block" : "block"
+        }`}
+      >
         <div>
+          <h2 className="text-lg font-semibold">Conversations</h2>
+          <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
+            {conversations === undefined ? (
+              <p className="text-sm text-zinc-400">Loading conversations...</p>
+            ) : conversations.length === 0 ? (
+              <p className="text-sm text-zinc-400">
+                No conversations yet. Start one from the user list.
+              </p>
+            ) : (
+              conversations.map((conversation) => {
+                const isActive = selectedConversationId === conversation._id;
+                return (
+                  <button
+                    key={conversation._id}
+                    type="button"
+                    onClick={() =>
+                      router.push(`/app?conversationId=${conversation._id}`)
+                    }
+                    className={`w-full rounded-lg border px-3 py-2 text-left transition ${
+                      isActive
+                        ? "border-zinc-500 bg-zinc-800"
+                        : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm font-medium text-zinc-100">
+                        {conversation.title}
+                      </p>
+                      <span className="shrink-0 text-[10px] text-zinc-500">
+                        {formatChallengeTimestamp(conversation.lastMessageAt)}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-xs text-zinc-400">
+                      {conversation.lastMessagePreview}
+                    </p>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-800 pt-4">
           <h2 className="text-lg font-semibold">People</h2>
           <p className="mt-1 text-sm text-zinc-400">
             Search users and start a direct conversation.
@@ -234,52 +282,13 @@ export function ChatWorkspace() {
             )}
           </div>
         </div>
-
-        <div className="border-t border-zinc-800 pt-4">
-          <h2 className="text-lg font-semibold">Conversations</h2>
-          <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
-            {conversations === undefined ? (
-              <p className="text-sm text-zinc-400">Loading conversations...</p>
-            ) : conversations.length === 0 ? (
-              <p className="text-sm text-zinc-400">
-                No conversations yet. Start one from the user list.
-              </p>
-            ) : (
-              conversations.map((conversation) => {
-                const isActive = selectedConversationId === conversation._id;
-                return (
-                  <button
-                    key={conversation._id}
-                    type="button"
-                    onClick={() =>
-                      router.push(`/app?conversationId=${conversation._id}`)
-                    }
-                    className={`w-full rounded-lg border px-3 py-2 text-left transition ${
-                      isActive
-                        ? "border-zinc-500 bg-zinc-800"
-                        : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="truncate text-sm font-medium text-zinc-100">
-                        {conversation.title}
-                      </p>
-                      <span className="shrink-0 text-[10px] text-zinc-500">
-                        {formatChallengeTimestamp(conversation.lastMessageAt)}
-                      </span>
-                    </div>
-                    <p className="mt-1 truncate text-xs text-zinc-400">
-                      {conversation.lastMessagePreview}
-                    </p>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
       </aside>
 
-      <div className="flex min-h-[620px] flex-col rounded-2xl border border-zinc-800 bg-zinc-900">
+      <div
+        className={`min-h-[620px] flex-col rounded-2xl border border-zinc-800 bg-zinc-900 ${
+          isMobileChatOpen ? "flex" : "hidden md:flex"
+        }`}
+      >
         {!selectedConversationId ? (
           <div className="p-6">
             <p className="text-sm text-zinc-400">No conversation selected</p>
@@ -299,6 +308,13 @@ export function ChatWorkspace() {
         ) : (
           <>
             <div className="border-b border-zinc-800 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => router.push("/app")}
+                className="mb-3 inline-flex rounded-lg border border-zinc-700 px-3 py-1 text-xs text-zinc-200 hover:bg-zinc-800 md:hidden"
+              >
+                Back
+              </button>
               <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                 Direct Message
               </p>
