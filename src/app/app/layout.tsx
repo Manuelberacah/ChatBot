@@ -11,7 +11,9 @@ type AppLayoutProps = {
 
 export default async function AppLayout({ children }: AppLayoutProps) {
   const { userId } = await auth();
+  console.log("[app layout] userId:", userId);
   if (!userId) {
+    console.log("[app layout] unauthenticated; redirecting to /sign-in");
     redirect("/sign-in");
   }
 

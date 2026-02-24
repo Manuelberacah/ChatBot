@@ -68,7 +68,7 @@ export const searchDiscoverableUsers = queryGeneric({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return [];
     }
 
     const currentUser = await ctx.db
@@ -106,15 +106,32 @@ export const touchCurrentUserPresence = mutationGeneric({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return { lastSeenAt: null };
     }
 
-    const currentUser = await ctx.db
+    let currentUser = await ctx.db
       .query("users")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .unique();
     if (!currentUser) {
-      throw new Error("User profile not found. Please refresh the app.");
+      const now = Date.now();
+      const name =
+        ((identity as { name?: string }).name ?? "User").trim() || "User";
+      const email = (identity as { email?: string }).email;
+      const imageUrl = (identity as { pictureUrl?: string }).pictureUrl;
+      const createdId = await ctx.db.insert("users", {
+        clerkId: identity.subject,
+        name,
+        imageUrl,
+        email,
+        createdAt: now,
+        updatedAt: now,
+        lastSeenAt: now,
+      });
+      currentUser = await ctx.db.get(createdId);
+      if (!currentUser) {
+        return { lastSeenAt: null };
+      }
     }
 
     const now = Date.now();

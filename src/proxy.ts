@@ -4,11 +4,17 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/api/debug-auth(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  const path = req.nextUrl.pathname;
+  console.log("[proxy] path:", path);
   if (!isPublicRoute(req)) {
+    console.log("[proxy] protected route; calling auth.protect()");
     await auth.protect();
+  } else {
+    console.log("[proxy] public route");
   }
 });
 
