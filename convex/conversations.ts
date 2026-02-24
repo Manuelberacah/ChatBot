@@ -149,8 +149,9 @@ export const getConversationPreview = queryGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       return null;
@@ -212,7 +213,7 @@ export const listMyConversations = queryGeneric({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return [];
     }
 
     const currentUser = await ctx.db
@@ -336,8 +337,9 @@ export const markConversationAsRead = mutationGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       throw new Error("Forbidden: you are not a member of this conversation");

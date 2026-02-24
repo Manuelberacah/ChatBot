@@ -1,9 +1,9 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { anyApi, type FunctionReference } from "convex/server";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type UpsertCurrentUserArgs = {
   clerkId: string;
@@ -17,11 +17,13 @@ const upsertCurrentUserRef = anyApi.users
 
 export function UserSync() {
   const { isLoaded, user } = useUser();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const upsertCurrentUser = useMutation(upsertCurrentUserRef);
   const lastSyncedUserIdRef = useRef<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
-    if (!isLoaded || !user) {
+    if (!isLoaded || !user || isLoading || !isAuthenticated) {
       return;
     }
     if (lastSyncedUserIdRef.current === user.id) {
@@ -30,12 +32,13 @@ export function UserSync() {
 
     const payload: UpsertCurrentUserArgs = {
       clerkId: user.id,
-      name:
+      name: (
         user.fullName ??
-        [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-        user.username ||
-        user.primaryEmailAddress?.emailAddress ||
-        "User",
+        [user.firstName, user.lastName].filter(Boolean).join(" ") ??
+        user.username ??
+        user.primaryEmailAddress?.emailAddress ??
+        "User"
+      ).trim() || "User",
       imageUrl: user.imageUrl ?? undefined,
       email: user.primaryEmailAddress?.emailAddress ?? undefined,
     };
@@ -46,8 +49,11 @@ export function UserSync() {
       })
       .catch((error: unknown) => {
         console.error("Failed to sync user profile to Convex", error);
+        window.setTimeout(() => {
+          setRetryTick((value) => value + 1);
+        }, 1000);
       });
-  }, [isLoaded, upsertCurrentUser, user]);
+  }, [isAuthenticated, isLoaded, isLoading, retryTick, upsertCurrentUser, user]);
 
   return null;
 }
