@@ -149,8 +149,9 @@ export const getConversationPreview = queryGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       return null;
@@ -336,8 +337,9 @@ export const markConversationAsRead = mutationGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       return { conversationId: args.conversationId, lastReadAt: null };

@@ -25,8 +25,9 @@ export const setTypingState = mutationGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       throw new Error("Forbidden: you are not a member of this conversation");
@@ -38,8 +39,9 @@ export const setTypingState = mutationGeneric({
     const existingTypingEvent = await ctx.db
       .query("typingEvents")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
 
     if (existingTypingEvent) {
@@ -80,8 +82,9 @@ export const getTypingUsers = queryGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       return [];

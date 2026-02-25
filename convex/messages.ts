@@ -25,8 +25,9 @@ export const sendMessage = mutationGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       throw new Error("Forbidden: you are not a member of this conversation");
@@ -85,8 +86,9 @@ export const deleteOwnMessage = mutationGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", message.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", message.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       throw new Error("Forbidden: conversation membership required");
@@ -137,22 +139,26 @@ export const toggleReaction = mutationGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", message.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", message.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       throw new Error("Forbidden: conversation membership required");
     }
 
-    const existingReaction = await ctx.db
-      .query("messageReactions")
-      .withIndex("by_message_user_emoji", (q) =>
-        q
-          .eq("messageId", args.messageId)
-          .eq("userId", currentUser._id)
-          .eq("emoji", args.emoji),
-      )
-      .unique();
+    const existingReaction = (
+      await ctx.db
+        .query("messageReactions")
+        .withIndex("by_message_user_emoji", (q) => q.eq("messageId", args.messageId))
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), currentUser._id),
+            q.eq(q.field("emoji"), args.emoji),
+          ),
+        )
+        .collect()
+    )[0];
 
     if (existingReaction) {
       await ctx.db.delete(existingReaction._id);
@@ -190,8 +196,9 @@ export const listConversationMessages = queryGeneric({
     const membership = await ctx.db
       .query("conversationMembers")
       .withIndex("by_conversation_and_user", (q) =>
-        q.eq("conversationId", args.conversationId).eq("userId", currentUser._id),
+        q.eq("conversationId", args.conversationId),
       )
+      .filter((q) => q.eq(q.field("userId"), currentUser._id))
       .unique();
     if (!membership) {
       return [];
