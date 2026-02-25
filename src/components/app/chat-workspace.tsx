@@ -165,7 +165,15 @@ export function ChatWorkspace() {
   const [userIsNearBottom, setUserIsNearBottom] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [failedMessageDraft, setFailedMessageDraft] = useState<string | null>(null);
+  const [conversationAccessSettled, setConversationAccessSettled] = useState(false);
+  const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(
+    null,
+  );
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const previousMessageCountRef = useRef(0);
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
 
   const selectedConversationId = searchParams.get("conversationId");
   const isMobileChatOpen = Boolean(selectedConversationId);
@@ -208,6 +216,20 @@ export function ChatWorkspace() {
 
   useEffect(() => {
     if (!selectedConversationId) {
+      setConversationAccessSettled(false);
+      return;
+    }
+
+    setConversationAccessSettled(false);
+    const timeoutId = window.setTimeout(() => {
+      setConversationAccessSettled(true);
+    }, 1200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (!selectedConversationId) {
       return;
     }
 
@@ -216,7 +238,7 @@ export function ChatWorkspace() {
       void setTypingState({
         conversationId: selectedConversationId,
         isTyping: false,
-      });
+      }).catch(() => undefined);
       return;
     }
 
@@ -224,7 +246,7 @@ export function ChatWorkspace() {
       void setTypingState({
         conversationId: selectedConversationId,
         isTyping: true,
-      });
+      }).catch(() => undefined);
     }, 250);
 
     return () => window.clearTimeout(timeoutId);
@@ -237,18 +259,20 @@ export function ChatWorkspace() {
 
     void markConversationAsRead({
       conversationId: selectedConversationId,
-    });
+    }).catch(() => undefined);
   }, [latestMessageId, markConversationAsRead, messages, selectedConversationId]);
 
   useEffect(() => {
     if (!selectedConversationId) {
       setShowNewMessagesButton(false);
       setUserIsNearBottom(true);
+      previousMessageCountRef.current = 0;
       return;
     }
 
     setShowNewMessagesButton(false);
     setUserIsNearBottom(true);
+    previousMessageCountRef.current = 0;
     const timeoutId = window.setTimeout(() => {
       const container = messagesContainerRef.current;
       if (!container) {
@@ -269,18 +293,25 @@ export function ChatWorkspace() {
       return;
     }
 
-    if (userIsNearBottom) {
+    const previousCount = previousMessageCountRef.current;
+    const currentCount = messages.length;
+    const hasNewMessages = currentCount > previousCount;
+    previousMessageCountRef.current = currentCount;
+
+    if (!hasNewMessages) {
+      return;
+    }
+
+    if (userIsNearBottom || previousCount === 0) {
       container.scrollTo({
         top: container.scrollHeight,
-        behavior: "smooth",
+        behavior: previousCount === 0 ? "auto" : "smooth",
       });
       setShowNewMessagesButton(false);
       return;
     }
 
-    if (messages.length > 0) {
-      setShowNewMessagesButton(true);
-    }
+    setShowNewMessagesButton(true);
   }, [latestMessageId, messages, userIsNearBottom]);
 
   useEffect(() => {
@@ -291,7 +322,7 @@ export function ChatWorkspace() {
       void setTypingState({
         conversationId: selectedConversationId,
         isTyping: false,
-      });
+      }).catch(() => undefined);
     };
   }, [selectedConversationId, setTypingState]);
 
@@ -431,6 +462,7 @@ export function ChatWorkspace() {
     try {
       setErrorMessage(null);
       await deleteOwnMessage({ messageId });
+      setOpenMessageMenuId(null);
     } catch (error) {
       console.error("Failed to delete message", error);
       setErrorMessage("Could not delete message. Please try again.");
@@ -441,9 +473,17 @@ export function ChatWorkspace() {
     try {
       setErrorMessage(null);
       await toggleReaction({ messageId, emoji });
+      setReactionPickerMessageId(null);
     } catch (error) {
       console.error("Failed to toggle reaction", error);
       setErrorMessage("Could not update reaction. Please try again.");
+    }
+  }
+
+  function clearLongPressTimer() {
+    if (longPressTimeoutRef.current !== null) {
+      window.clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
     }
   }
 
@@ -474,9 +514,9 @@ export function ChatWorkspace() {
   }
 
   return (
-    <section className="grid gap-6 md:grid-cols-[340px_1fr]">
+    <section className="grid h-[calc(100vh-9rem)] min-w-0 gap-6 md:grid-cols-[340px_minmax(0,1fr)]">
       <aside
-        className={`space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 ${
+        className={`h-full space-y-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 p-4 ${
           isMobileChatOpen ? "hidden md:block" : "block"
         }`}
       >
@@ -677,7 +717,7 @@ export function ChatWorkspace() {
       </aside>
 
       <div
-        className={`min-h-[620px] flex-col rounded-2xl border border-zinc-800 bg-zinc-900 ${
+        className={`h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 ${
           isMobileChatOpen ? "flex" : "hidden md:flex"
         }`}
       >
@@ -721,6 +761,8 @@ export function ChatWorkspace() {
             </p>
           </div>
         ) : selectedConversation === undefined ? (
+          <p className="p-6 text-sm text-zinc-400">Loading conversation...</p>
+        ) : selectedConversation === null && !conversationAccessSettled ? (
           <p className="p-6 text-sm text-zinc-400">Loading conversation...</p>
         ) : selectedConversation === null ? (
           <p className="p-6 text-sm text-red-300">
@@ -771,7 +813,7 @@ export function ChatWorkspace() {
             <div
               ref={messagesContainerRef}
               onScroll={handleMessagesScroll}
-              className="flex-1 space-y-3 overflow-y-auto px-6 py-4"
+              className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-6 py-4"
             >
               {messages === undefined ? (
                 <div className="space-y-3">
@@ -792,20 +834,76 @@ export function ChatWorkspace() {
                 messages.map((message) => (
                   <div
                     key={message._id}
-                    className={`group relative max-w-[80%] rounded-xl px-3 py-2 ${
+                    onMouseLeave={() => {
+                      if (openMessageMenuId === message._id) {
+                        setOpenMessageMenuId(null);
+                      }
+                      clearLongPressTimer();
+                    }}
+                    onClick={() => {
+                      if (longPressTriggeredRef.current) {
+                        longPressTriggeredRef.current = false;
+                        return;
+                      }
+                      if (message.isDeleted) {
+                        return;
+                      }
+                      setReactionPickerMessageId((current) =>
+                        current === message._id ? null : message._id,
+                      );
+                    }}
+                    onPointerDown={() => {
+                      if (message.isDeleted) {
+                        return;
+                      }
+                      longPressTriggeredRef.current = false;
+                      clearLongPressTimer();
+                      longPressTimeoutRef.current = window.setTimeout(() => {
+                        longPressTriggeredRef.current = true;
+                        setReactionPickerMessageId(message._id);
+                      }, 350);
+                    }}
+                    onPointerUp={clearLongPressTimer}
+                    onPointerCancel={clearLongPressTimer}
+                    className={`group relative w-fit max-w-[85%] min-w-0 rounded-xl px-3 py-2 ${
                       message.isMine
                         ? "ml-auto bg-zinc-100 text-zinc-900"
                         : "bg-zinc-800 text-zinc-100"
                     }`}
                   >
                     {message.isMine && !message.isDeleted ? (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteMessage(message._id)}
-                        className="absolute -top-2 -left-2 hidden rounded-full border border-zinc-500 bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-100 hover:bg-zinc-800 group-hover:block"
-                      >
-                        Delete
-                      </button>
+                      <div className="absolute right-1 top-1 z-10">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setOpenMessageMenuId((current) =>
+                              current === message._id ? null : message._id,
+                            );
+                          }}
+                          className={`rounded-full border border-zinc-500 bg-zinc-900 px-1.5 py-0.5 text-[11px] leading-none text-zinc-100 hover:bg-zinc-800 ${
+                            openMessageMenuId === message._id
+                              ? "block"
+                              : "hidden group-hover:block"
+                          }`}
+                        >
+                          ▾
+                        </button>
+                        {openMessageMenuId === message._id ? (
+                          <div className="absolute right-0 top-6 w-20 rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-lg">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleDeleteMessage(message._id);
+                              }}
+                              className="w-full rounded px-2 py-1 text-left text-xs text-zinc-100 hover:bg-zinc-800"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     ) : null}
                     <p className="text-[11px] opacity-70">{message.senderName}</p>
                     {message.isDeleted ? (
@@ -813,42 +911,64 @@ export function ChatWorkspace() {
                         This message was deleted
                       </p>
                     ) : (
-                      <p className="mt-1 text-sm">{message.body}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm">
+                        {message.body}
+                      </p>
                     )}
+                    {reactionPickerMessageId === message._id && !message.isDeleted ? (
+                      <div className="absolute -left-1 -top-9 z-10 flex gap-1 rounded-full border border-zinc-700 bg-zinc-900 px-2 py-1 shadow-lg">
+                        {["👍", "❤️", "😂", "😮", "😢"].map((emoji) => (
+                          <button
+                            key={`${message._id}-picker-${emoji}`}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleToggleReaction(message._id, emoji);
+                            }}
+                            className="rounded-full border border-zinc-600 px-2 py-0.5 text-[11px] hover:bg-zinc-800"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     <p className="mt-1 text-[11px] opacity-70">
                       {formatChallengeTimestamp(message.createdAt)}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {message.reactions.map((reaction) => (
-                        <button
-                          key={`${message._id}-${reaction.emoji}`}
-                          type="button"
-                          onClick={() =>
-                            handleToggleReaction(message._id, reaction.emoji)
-                          }
-                          className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                            reaction.reactedByMe
-                              ? "border-emerald-400 bg-emerald-100 text-zinc-900"
-                              : message.isMine
-                                ? "border-zinc-400 bg-white/70 text-zinc-900"
-                                : "border-zinc-600 bg-zinc-700 text-zinc-100"
-                          }`}
-                        >
-                          {reaction.emoji} {reaction.count > 0 ? reaction.count : ""}
-                        </button>
-                      ))}
+                      {message.reactions
+                        .filter((reaction) => reaction.count > 0)
+                        .map((reaction) => (
+                          <button
+                            key={`${message._id}-${reaction.emoji}`}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleToggleReaction(message._id, reaction.emoji);
+                            }}
+                            className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                              reaction.reactedByMe
+                                ? "border-emerald-400 bg-emerald-100 text-zinc-900"
+                                : message.isMine
+                                  ? "border-zinc-400 bg-white/70 text-zinc-900"
+                                  : "border-zinc-600 bg-zinc-700 text-zinc-100"
+                            }`}
+                          >
+                            {reaction.emoji} {reaction.count}
+                          </button>
+                        ))}
                     </div>
                   </div>
                 ))
               )}
             </div>
 
-            <div className="px-6">
+            <div className="pointer-events-none flex justify-center px-6">
               {showNewMessagesButton ? (
                 <button
                   type="button"
                   onClick={scrollMessagesToBottom}
-                  className="rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs text-zinc-100 hover:bg-zinc-700"
+                  className="pointer-events-auto rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs text-zinc-100 hover:bg-zinc-700"
                 >
                   New messages ↓
                 </button>

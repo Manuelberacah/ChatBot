@@ -135,7 +135,7 @@ export const getConversationPreview = queryGeneric({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return null;
     }
 
     const currentUser = await ctx.db
@@ -212,7 +212,7 @@ export const listMyConversations = queryGeneric({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return [];
     }
 
     const currentUser = await ctx.db
@@ -322,7 +322,7 @@ export const markConversationAsRead = mutationGeneric({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return { conversationId: args.conversationId, lastReadAt: null };
     }
 
     const currentUser = await ctx.db
@@ -330,7 +330,7 @@ export const markConversationAsRead = mutationGeneric({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .unique();
     if (!currentUser) {
-      throw new Error("User profile not found. Please refresh the app.");
+      return { conversationId: args.conversationId, lastReadAt: null };
     }
 
     const membership = await ctx.db
@@ -340,7 +340,7 @@ export const markConversationAsRead = mutationGeneric({
       )
       .unique();
     if (!membership) {
-      throw new Error("Forbidden: you are not a member of this conversation");
+      return { conversationId: args.conversationId, lastReadAt: null };
     }
 
     const now = Date.now();

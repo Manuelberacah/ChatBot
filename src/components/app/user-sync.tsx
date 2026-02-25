@@ -32,10 +32,10 @@ export function UserSync() {
       clerkId: user.id,
       name:
         user.fullName ??
-        [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-        user.username ||
-        user.primaryEmailAddress?.emailAddress ||
-        "User",
+        ([user.firstName, user.lastName].filter(Boolean).join(" ") ||
+          user.username ||
+          user.primaryEmailAddress?.emailAddress ||
+          "User"),
       imageUrl: user.imageUrl ?? undefined,
       email: user.primaryEmailAddress?.emailAddress ?? undefined,
     };
