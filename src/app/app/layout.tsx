@@ -11,9 +11,8 @@ type AppLayoutProps = {
 
 export default async function AppLayout({ children }: AppLayoutProps) {
   const { userId } = await auth();
-  console.log("[app layout] userId:", userId);
+
   if (!userId) {
-    console.log("[app layout] unauthenticated; redirecting to /sign-in");
     redirect("/sign-in");
   }
 
@@ -32,7 +31,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               Tars Chat
             </p>
             <p className="text-sm text-zinc-200">
-              Signed in as <span className="font-semibold">{displayName}</span>
+              Signed in as{" "}
+              <span className="font-semibold">{displayName}</span>
             </p>
           </div>
           <UserButton afterSignOutUrl="/" />

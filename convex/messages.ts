@@ -182,7 +182,7 @@ export const listConversationMessages = queryGeneric({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return [];
     }
 
     const currentUser = await ctx.db

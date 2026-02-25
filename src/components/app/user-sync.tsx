@@ -26,6 +26,7 @@ export function UserSync() {
     if (!isLoaded || !user || isLoading || !isAuthenticated) {
       return;
     }
+
     if (lastSyncedUserIdRef.current === user.id) {
       return;
     }
@@ -34,10 +35,10 @@ export function UserSync() {
       clerkId: user.id,
       name: (
         user.fullName ??
-        [user.firstName, user.lastName].filter(Boolean).join(" ") ??
-        user.username ??
-        user.primaryEmailAddress?.emailAddress ??
-        "User"
+        ([user.firstName, user.lastName].filter(Boolean).join(" ") ||
+          user.username ||
+          user.primaryEmailAddress?.emailAddress ||
+          "User")
       ).trim() || "User",
       imageUrl: user.imageUrl ?? undefined,
       email: user.primaryEmailAddress?.emailAddress ?? undefined,

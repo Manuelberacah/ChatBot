@@ -11,7 +11,7 @@ export const setTypingState = mutationGeneric({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return null;
     }
 
     const currentUser = await ctx.db
@@ -19,7 +19,7 @@ export const setTypingState = mutationGeneric({
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
       .unique();
     if (!currentUser) {
-      throw new Error("User profile not found. Please refresh the app.");
+      return null;
     }
 
     const membership = await ctx.db
@@ -68,7 +68,7 @@ export const getTypingUsers = queryGeneric({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Unauthorized");
+      return [];
     }
 
     const currentUser = await ctx.db

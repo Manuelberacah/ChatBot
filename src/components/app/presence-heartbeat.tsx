@@ -21,7 +21,15 @@ export function PresenceHeartbeat() {
       }
       try {
         await touchCurrentUserPresence({});
-      } catch (error) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (
+          message.includes("Unauthorized") ||
+          message.includes("network") ||
+          message.includes("disconnected")
+        ) {
+          return;
+        }
         console.error("Presence heartbeat failed", error);
       }
     }
