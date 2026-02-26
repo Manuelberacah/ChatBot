@@ -516,7 +516,7 @@ export function ChatWorkspace() {
   return (
     <section className="grid h-[calc(100vh-9rem)] min-w-0 gap-6 md:grid-cols-[340px_minmax(0,1fr)]">
       <aside
-        className={`h-full space-y-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 p-4 ${
+        className={`h-full space-y-4 overflow-y-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-4 ${
           isMobileChatOpen ? "hidden md:block" : "block"
         }`}
       >
@@ -1013,4 +1013,5 @@ export function ChatWorkspace() {
     </section>
   );
 }
+
 
